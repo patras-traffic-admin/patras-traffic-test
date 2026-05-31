@@ -1,0 +1,40 @@
+name: Cloud Traffic Bot (Sandbox)
+
+on:
+  schedule:
+    # Ώρες Ημέρας (UTC): Κάθε 10 λεπτά (Περίπου 07:00 - 23:59 ώρα Ελλάδος)
+    - cron: '*/10 4-20 * * *'
+    # Ώρες Νύχτας (UTC): Κάθε 30 λεπτά (Περίπου 00:00 - 06:59 ώρα Ελλάδος)
+    - cron: '*/30 21-23,0-3 * * *'
+  workflow_dispatch: # Μας επιτρέπει να το τρέχουμε και χειροκίνητα με ένα κλικ
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install pandas requests openpyxl
+
+    - name: Run Traffic Bot
+      env:
+        TOMTOM_API_KEYS: ${{ secrets.TOMTOM_API_KEYS }}
+      run: |
+        python cloud_bot.py
+
+    - name: Save CSV to GitHub
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add cloud_test_data.csv
+        git commit -m "🤖 Auto-update Live Data" || echo "No changes to commit"
+        git push
