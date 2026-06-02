@@ -19,7 +19,7 @@ API_KEYS = [
 ]
 
 # 1. Ρυθμίσεις σελίδας - Modern Theme
-st.set_page_config(page_title="Patras Traffic Analytics PRO", page_icon="🚦", layout="wide")
+st.set_page_config(page_title="Patras Traffic Analytics", page_icon="🚦", layout="wide")
 
 # 🔥 CUSTOM CSS
 st.markdown("""
@@ -40,7 +40,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🚦 Patras Traffic Analytics PRO")
+# Αφαίρεση του "PRO" από τον τίτλο
+st.title("🚦 Patras Traffic Analytics")
 st.markdown("---")
 
 if 'start_point' not in st.session_state: st.session_state.start_point = None
@@ -85,8 +86,13 @@ df_history['Timestamp'] = pd.to_datetime(df_history['Timestamp'], format='mixed'
 df_history['Date'] = df_history['Timestamp'].dt.date
 df_history['Time'] = df_history['Timestamp'].dt.strftime('%H:%M')
 
-# --- 5. SIDEBAR (Φίλτρα) ---
+# --- 5. SIDEBAR (Φίλτρα & Λογότυπο) ---
 with st.sidebar:
+    # Προσθήκη του λογότυπου στην κορυφή της μπάρας
+    if os.path.exists("logo-m.png"):
+        st.image("logo-m.png", use_container_width=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
     st.markdown("## ⚙️ Κέντρο Ελέγχου")
     st.markdown("---")
     
@@ -219,7 +225,7 @@ def get_hybrid_color(speed, road_name):
         return "#66BB6A"
 
 def haversine_dist(coord1, coord2):
-    R = 6371000 # Ακτίνα της Γης σε μέτρα
+    R = 6371000 
     lat1, lon1 = math.radians(coord1[0]), math.radians(coord1[1])
     lat2, lon2 = math.radians(coord2[0]), math.radians(coord2[1])
     dlat = lat2 - lat1
@@ -516,7 +522,13 @@ with tab2:
             st.session_state.end_point = None
             st.rerun()
         
-    m_click = folium.Map(location=[38.2462, 21.7351], zoom_start=14, tiles="OpenStreetMap")
+    # Αλλαγή χάρτη σε Google Maps style
+    m_click = folium.Map(
+        location=[38.2462, 21.7351], 
+        zoom_start=14, 
+        tiles='https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', 
+        attr='Google Maps'
+    )
     
     for road_name, coords in geometry_data.items():
         folium.PolyLine(locations=coords, color="#0088CC", weight=4, opacity=0.5, tooltip=f"Άξονας: {road_name}").add_to(m_click)
@@ -578,7 +590,13 @@ with tab2:
                 
                 route_coords = [[p['latitude'], p['longitude']] for p in points]
                 
-                m_res = folium.Map(location=route_coords[0], zoom_start=14, tiles="OpenStreetMap")
+                # Αλλαγή χάρτη αποτελεσμάτων σε Google Maps style
+                m_res = folium.Map(
+                    location=route_coords[0], 
+                    zoom_start=14, 
+                    tiles='https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', 
+                    attr='Google Maps'
+                )
                 
                 for road_name, coords in geometry_data.items():
                     speed = live_speeds.get(road_name, static_data.get(road_name, 0))
@@ -823,7 +841,13 @@ with tab4:
                 specific_speed = all_forecast_speeds.get(selected_road_tab4, 0)
                 st.metric(f"Ταχύτητα ({selected_road_tab4})", f"{round(specific_speed, 1)} km/h")
 
-        m_forecast = folium.Map(location=[38.2462, 21.7351], zoom_start=14, tiles="OpenStreetMap")
+        # Αλλαγή χάρτη πρόβλεψης σε Google Maps style
+        m_forecast = folium.Map(
+            location=[38.2462, 21.7351], 
+            zoom_start=14, 
+            tiles='https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', 
+            attr='Google Maps'
+        )
         
         for road_name, coords in geometry_data.items():
             speed = all_forecast_speeds.get(road_name, 0)
