@@ -392,24 +392,35 @@ with tab1:
                 )
                 st.plotly_chart(pie_fig, use_container_width=True)
 
+            # 👇 ΕΔΩ ΑΡΧΙΖΕΙ Η ΑΛΛΑΓΗ ΤΟΥ ΝΕΟΥ ΔΙΑΓΡΑΜΜΑΤΟΣ 👇
             st.markdown("---")
-            st.markdown("### 🚦 Κατανομή Επιπέδου Εξυπηρέτησης (Level of Service - LOS)")
-            st.caption("Εκτίμηση του δείκτη LOS (A-F) βάσει της απόκλισης της τρέχουσας ταχύτητας από την ιδανική ταχύτητα ελεύθερης ροής (Free Flow).")
+            st.markdown("### 🚦 Δείκτης Λειτουργικής Κατάστασης Δικτύου")
+            st.caption("Κατάταξη των οδών βάσει της απόκλισης της τρέχουσας ταχύτητας από το όριο (Λόγος Ταχύτητας Ροής).")
 
-            def get_los(row):
+            # 1. Νέες κατηγορίες αντί για LOS A-F
+            status_order = [
+                'Ελεύθερη Ροή (Βέλτιστη)', 
+                'Σταθερή Ροή', 
+                'Ήπια Επιβάρυνση', 
+                'Ασταθής Ροή', 
+                'Οριακή Συμφόρηση', 
+                'Έντονη Συμφόρηση (Gridlock)'
+            ]
+
+            def get_op_status(row):
                 limit = row['Limit']
                 speed = row['Speed_kmh']
                 if limit <= 0: return 'Άγνωστο'
                 
                 ratio = speed / limit
-                if ratio >= 0.85: return 'A'
-                elif ratio >= 0.70: return 'B'
-                elif ratio >= 0.50: return 'C'
-                elif ratio >= 0.40: return 'D'
-                elif ratio >= 0.33: return 'E'
-                else: return 'F'
+                if ratio >= 0.85: return status_order[0]
+                elif ratio >= 0.70: return status_order[1]
+                elif ratio >= 0.50: return status_order[2]
+                elif ratio >= 0.40: return status_order[3]
+                elif ratio >= 0.33: return status_order[4]
+                else: return status_order[5]
 
-            filtered_view_df['LOS'] = filtered_view_df.apply(get_los, axis=1)
+            filtered_view_df['Status'] = filtered_view_df.apply(get_op_status, axis=1)
 
             def get_tooltip_roads(df_group):
                 roads = df_group['Road_Segment'].tolist()
@@ -417,58 +428,63 @@ with tab1:
                     return "<br>".join(roads[:6]) + f"<br><i>...και άλλοι {len(roads)-6}</i>"
                 return "<br>".join(roads)
 
-            los_hover_data = filtered_view_df.groupby('LOS').apply(get_tooltip_roads).reset_index(name='Ενδεικτικές Οδοί')
-            los_counts = filtered_view_df['LOS'].value_counts().reset_index()
-            los_counts.columns = ['Επίπεδο (LOS)', 'Πλήθος Οδών']
+            status_hover_data = filtered_view_df.groupby('Status').apply(get_tooltip_roads).reset_index(name='Ενδεικτικές Οδοί')
+            status_counts = filtered_view_df['Status'].value_counts().reset_index()
+            status_counts.columns = ['Λειτουργική Κατάσταση', 'Πλήθος Οδών']
 
-            los_counts = pd.merge(los_counts, los_hover_data, left_on='Επίπεδο (LOS)', right_on='LOS', how='left')
+            status_counts = pd.merge(status_counts, status_hover_data, left_on='Λειτουργική Κατάσταση', right_on='Status', how='left')
 
-            los_order = ['A', 'B', 'C', 'D', 'E', 'F']
-            los_counts['Επίπεδο (LOS)'] = pd.Categorical(los_counts['Επίπεδο (LOS)'], categories=los_order, ordered=True)
-            los_counts = los_counts.sort_values('Επίπεδο (LOS)').dropna()
+            status_counts['Λειτουργική Κατάσταση'] = pd.Categorical(status_counts['Λειτουργική Κατάσταση'], categories=status_order, ordered=True)
+            status_counts = status_counts.sort_values('Λειτουργική Κατάσταση').dropna()
 
-            los_color_map = {
-                'A': '#2ecc71', 'B': '#82e0aa', 'C': '#f1c40f', 
-                'D': '#e67e22', 'E': '#e74c3c', 'F': '#8b0000'
+            status_color_map = {
+                status_order[0]: '#2ecc71', 
+                status_order[1]: '#82e0aa', 
+                status_order[2]: '#f1c40f', 
+                status_order[3]: '#e67e22', 
+                status_order[4]: '#e74c3c', 
+                status_order[5]: '#8b0000'
             }
 
-            fig_los = px.bar(
-                los_counts, 
-                x='Επίπεδο (LOS)', 
+            fig_status = px.bar(
+                status_counts, 
+                x='Λειτουργική Κατάσταση', 
                 y='Πλήθος Οδών', 
-                color='Επίπεδο (LOS)',
-                color_discrete_map=los_color_map,
+                color='Λειτουργική Κατάσταση',
+                color_discrete_map=status_color_map,
                 text='Πλήθος Οδών',
                 custom_data=['Ενδεικτικές Οδοί']
             )
 
-            fig_los.update_traces(
+            fig_status.update_traces(
                 textposition='outside',
-                hovertemplate="<b>Επίπεδο %{x}</b><br>Πλήθος: %{y}<br><br><b>Οδοί:</b><br>%{customdata[0]}<extra></extra>"
+                hovertemplate="<b>%{x}</b><br>Πλήθος: %{y}<br><br><b>Οδοί:</b><br>%{customdata[0]}<extra></extra>"
             )
             
-            fig_los.update_layout(
+            fig_status.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(10,10,10,0.5)', font=dict(color="white"),
-                xaxis=dict(title="Επίπεδο Εξυπηρέτησης (LOS)", showgrid=False),
+                xaxis=dict(title="Βαθμίδα Λειτουργικότητας", showgrid=False),
                 yaxis=dict(title="Αριθμός Δρόμων", showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
-                showlegend=False, height=350, margin=dict(t=20, b=20, l=10, r=10)
+                showlegend=False, height=400, margin=dict(t=20, b=20, l=10, r=10)
             )
 
-            st.plotly_chart(fig_los, use_container_width=True)
+            st.plotly_chart(fig_status, use_container_width=True)
 
-            with st.expander("📋 Προβολή Αναλυτικής Λίστας Οδών ανά Επίπεδο LOS"):
-                selected_los = st.selectbox("Επιλέξτε Κατηγορία για προβολή οδών:", los_order, index=5)
+            with st.expander("📋 Προβολή Αναλυτικής Λίστας Οδών ανά Κατάσταση"):
+                # Το index=5 προεπιλέγει την Έντονη Συμφόρηση (τη χειρότερη κατάσταση)
+                selected_status = st.selectbox("Επιλέξτε Κατηγορία για προβολή οδών:", status_order, index=5)
                 
-                df_selected_los = filtered_view_df[filtered_view_df['LOS'] == selected_los][
+                df_selected_status = filtered_view_df[filtered_view_df['Status'] == selected_status][
                     ['Road_Segment', 'Speed_kmh', 'Limit', 'Ratio', 'Type']
                 ].sort_values('Ratio')
                 
-                df_selected_los.columns = ['Όνομα Οδού', 'Ταχύτητα (km/h)', 'Όριο (km/h)', 'Δείκτης (Ratio)', 'Τύπος Οδού']
+                df_selected_status.columns = ['Όνομα Οδού', 'Ταχύτητα (km/h)', 'Όριο (km/h)', 'Δείκτης (Ratio)', 'Τύπος Οδού']
                 
-                if df_selected_los.empty:
-                    st.info(f"Δεν υπάρχουν δρόμοι σε αυτή την κατηγορία ({selected_los}) για την επιλεγμένη ώρα.")
+                if df_selected_status.empty:
+                    st.info(f"Δεν υπάρχουν δρόμοι σε αυτή την κατηγορία ({selected_status}) για την επιλεγμένη ώρα.")
                 else:
-                    st.dataframe(df_selected_los, use_container_width=True)
+                    st.dataframe(df_selected_status, use_container_width=True)
+            # 👆 ΤΕΛΟΣ ΕΝΣΩΜΑΤΩΣΗΣ ΝΕΟΥ ΔΙΑΓΡΑΜΜΑΤΟΣ 👆
 
         else:
             st.warning("⚠️ Δεν υπάρχουν διαθέσιμα τρέχοντα δεδομένα κυκλοφορίας.")
@@ -509,7 +525,6 @@ with tab1:
             st.plotly_chart(fig_road_line, use_container_width=True)
         else:
             st.warning("⚠️ Δεν υπάρχουν επαρκή δεδομένα για αυτή την οδό σήμερα.")
-
 # ================= TAB 2 =================
 with tab2:
     st.markdown("### 🔬 Επιλογή Διαδρομής & Live Κίνηση")
